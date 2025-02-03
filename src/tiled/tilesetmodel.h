@@ -104,6 +104,12 @@ public:
 
     void setColumnCountOverride(int columnCount);
 
+    void setRelocating(bool relocating) { mRelocating = relocating; }
+
+    QSize tileSpanSize(const QModelIndex &index) const;
+    Tile *findSpanningTile(const QModelIndex &index) const;
+    bool isCellCoveredBySpan(const QModelIndex &index) const;
+
 public slots:
     /**
      * Should be called when anything changes about the given \a tiles that
@@ -131,6 +137,7 @@ private:
     TilesetDocument *mTilesetDocument;
     QList<int> mTileIds;
     int mColumnCountOverride = 0;
+    bool mRelocating = false;
 };
 
 } // namespace Tiled

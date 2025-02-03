@@ -49,6 +49,10 @@ int TilesetModel::rowCount(const QModelIndex &parent) const
     if (parent.isValid())
         return 0;
 
+    if (tileset()->isAtlas()) {
+        return tileset()->rowCount();
+    }
+
     const int tileCount = mTileIds.size();
     const int columns = columnCount();
 
@@ -66,6 +70,9 @@ int TilesetModel::columnCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
+    if (tileset()->isAtlas()) {
+        return tileset()->columnCount();
+    }
     if (mColumnCountOverride > 0)
         return mColumnCountOverride;
     if (tileset()->columnCount())
@@ -94,11 +101,83 @@ QVariant TilesetModel::headerData(int /* section */,
     return QVariant();
 }
 
+QSize TilesetModel::tileSpanSize(const QModelIndex &index) const
+{
+    if (!tileset()->isAtlas())
+        return QSize(1, 1);
+
+    if (Tile *tile = tileAt(index)) {
+        const int tileWidth = tileset()->tileWidth();
+        const int tileHeight = tileset()->tileHeight();
+        const QRect rect = tile->imageRect();
+        return QSize(
+            rect.width() / tileWidth,
+            rect.height() / tileHeight
+        );
+    }
+
+    return QSize(1, 1);
+}
+
+Tile *TilesetModel::findSpanningTile(const QModelIndex &index) const
+{
+    if (!tileset()->isAtlas())
+        return nullptr;
+
+    for (Tile *tile : tileset()->tiles()) {
+        // Use tileIndex to get normalized grid position
+        QModelIndex tilePos = tileIndex(tile);
+        QSize span = tileSpanSize(tilePos);
+
+        if (span.width() <= 1 && span.height() <= 1)
+            continue;
+
+        if (index.row() >= tilePos.row() && index.row() < tilePos.row() + span.height() &&
+            index.column() >= tilePos.column() && index.column() < tilePos.column() + span.width()) {
+            return tile;
+        }
+    }
+
+    return nullptr;
+}
+
+bool TilesetModel::isCellCoveredBySpan(const QModelIndex &index) const
+{
+    if (!tileset()->isAtlas())
+        return false;
+
+    // If this cell contains a tile's origin, it's not covered
+    if (tileAt(index))
+        return false;
+
+    // Check if this cell is covered by another tile's span
+    return findSpanningTile(index) != nullptr;
+}
+
 Qt::ItemFlags TilesetModel::flags(const QModelIndex &index) const
 {
     Qt::ItemFlags defaultFlags = QAbstractListModel::flags(index);
-    defaultFlags |= Qt::ItemIsDropEnabled;
 
+    if (tileset()->isAtlas()) {
+        if (!index.isValid())
+            return defaultFlags;
+
+        // For atlas tilesets, only allow selection for empty tiles when relocating
+        if (mRelocating)
+            return defaultFlags | Qt::ItemIsSelectable;
+
+        // If this cell is covered by another tile's span, make it unselectable
+        if (isCellCoveredBySpan(index))
+            return defaultFlags & ~Qt::ItemIsSelectable;
+
+        // Only allow selection of cells that actually contain tiles
+        if (tileAt(index))
+            return defaultFlags;
+
+        return defaultFlags & ~Qt::ItemIsSelectable;
+    }
+
+    defaultFlags |= Qt::ItemIsDropEnabled;
     if (index.isValid())
         defaultFlags |= Qt::ItemIsDragEnabled;
 
@@ -190,6 +269,11 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
     if (!index.isValid())
         return nullptr;
 
+    if (tileset()->isAtlas()) {
+        const int tileId = tileset()->generateTileId(index.column(), index.row());
+        return tileset()->findTile(tileId);
+    }
+
     const int tileIndex = index.column() + index.row() * columnCount();
 
     if (tileIndex < mTileIds.size()) {
@@ -203,6 +287,16 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
 QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
+
+    if (tileset()->isAtlas()) {
+        const int spacing = tileset()->tileSpacing();
+        const int margin = tileset()->margin();
+        const int tileHeight = tileset()->tileHeight();
+        const int tileWidth = tileset()->tileWidth();
+        const int tileRow = (tile->imageRect().y() - margin) / (tileHeight + spacing);
+        const int tileCol = (tile->imageRect().x() - margin) / (tileWidth + spacing);
+        return index(tileRow, tileCol);
+    }
 
     const int columnCount = TilesetModel::columnCount();
 
