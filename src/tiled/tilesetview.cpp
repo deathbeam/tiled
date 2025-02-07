@@ -689,7 +689,6 @@ void TilesetView::mouseReleaseEvent(QMouseEvent *event)
 
     if (mRelocateTiles && tilesetModel() && tilesetModel()->tileset()->isAtlas()) {
         handleAtlasMouseReleaseEvent(event);
-        return;
     }
 
     QTableView::mouseReleaseEvent(event);
