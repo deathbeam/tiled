@@ -161,19 +161,6 @@ Tile *TilesetModel::findSpanningTile(const QModelIndex &index) const
     return nullptr;
 }
 
-bool TilesetModel::isCellCoveredBySpan(const QModelIndex &index) const
-{
-    if (!tileset()->isAtlas())
-        return false;
-
-    // If this cell contains a tile's origin, it's not covered
-    if (tileAt(index))
-        return false;
-
-    // Check if this cell is covered by another tile's span
-    return findSpanningTile(index) != nullptr;
-}
-
 Qt::ItemFlags TilesetModel::flags(const QModelIndex &index) const
 {
     Qt::ItemFlags defaultFlags = QAbstractListModel::flags(index);
@@ -182,17 +169,9 @@ Qt::ItemFlags TilesetModel::flags(const QModelIndex &index) const
         if (!index.isValid())
             return defaultFlags;
 
-        // For atlas tilesets, only allow selection for empty tiles when relocating
-        if (mRelocating)
+        // If this cell contains a tile's origin or we are relocating, it's selectable
+        if (mRelocating || tileAt(index))
             return defaultFlags | Qt::ItemIsSelectable;
-
-        // If this cell is covered by another tile's span, make it unselectable
-        if (isCellCoveredBySpan(index))
-            return defaultFlags & ~Qt::ItemIsSelectable;
-
-        // Only allow selection of cells that actually contain tiles
-        if (tileAt(index))
-            return defaultFlags;
 
         return defaultFlags & ~Qt::ItemIsSelectable;
     }

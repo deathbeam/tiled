@@ -108,7 +108,6 @@ public:
 
     QSize tileSpanSize(const QModelIndex &index) const;
     Tile *findSpanningTile(const QModelIndex &index) const;
-    bool isCellCoveredBySpan(const QModelIndex &index) const;
 
 public slots:
     /**
