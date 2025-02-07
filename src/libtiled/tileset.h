@@ -243,6 +243,11 @@ public:
      */
     int generateTileId(int x, int y, bool absolute = false) const;
 
+    /**
+     * Generates a grid position from a tile ID.
+     */
+    QPoint generateTilePos(int id) const;
+
     void setTileImage(Tile *tile,
                       const QPixmap &image,
                       const QUrl &source = QUrl());

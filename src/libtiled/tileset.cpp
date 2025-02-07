@@ -734,6 +734,13 @@ int Tileset::generateTileId(int x, int y, bool absolute) const {
     return (x << 12) | y; // 24 bits total
 }
 
+QPoint Tileset::generateTilePos(int id) const
+{
+    const int x = (id >> 12) & 0xFFF;
+    const int y = id & 0xFFF;
+    return QPoint(x, y);
+}
+
 QString Tileset::orientationToString(Tileset::Orientation orientation)
 {
     switch (orientation) {

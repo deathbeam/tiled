@@ -134,6 +134,9 @@ private:
 
     void refreshTileIds();
 
+    QPoint viewToAtlasCoords(int viewCol, int viewRow) const;
+    QPoint atlasToViewCoords(int atlasCol, int atlasRow) const;
+
     TilesetDocument *mTilesetDocument;
     QList<int> mTileIds;
     int mColumnCountOverride = 0;

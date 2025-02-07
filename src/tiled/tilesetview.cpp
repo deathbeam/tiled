@@ -417,6 +417,8 @@ bool TilesetView::dynamicWrapping() const
             return tilesetModel()->tileset()->isCollection();
         break;
     case WrapDynamic:
+        if (tilesetModel() && tilesetModel()->tileset()->isAtlas())
+            return !mRelocateTiles;
         return true;
     case WrapFixed:
         return false;
@@ -530,6 +532,7 @@ void TilesetView::setRelocateTiles(bool enabled)
     else
         setDragDropMode(QTableView::NoDragDrop);
 
+    refreshColumnCount();
     setMouseTracking(true);
     viewport()->update();
 }
@@ -764,7 +767,7 @@ void TilesetView::contextMenuEvent(QContextMenuEvent *event)
     if (!model)
         return;
 
-    if (mRelocateTiles) {
+    if (mRelocateTiles && model->tileset()->isAtlas()) {
         return;
     }
 

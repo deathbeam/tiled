@@ -44,13 +44,36 @@ TilesetModel::TilesetModel(TilesetDocument *tilesetDocument, QObject *parent)
             this, &TilesetModel::tileChanged);
 }
 
+QPoint TilesetModel::viewToAtlasCoords(int viewCol, int viewRow) const
+{
+    const int currentCols = columnCount();
+    const int atlasCols = tileset()->columnCount();
+    const int linearIndex = viewCol + viewRow * currentCols;
+    return QPoint(linearIndex % atlasCols,
+                 linearIndex / atlasCols);
+}
+
+QPoint TilesetModel::atlasToViewCoords(int atlasCol, int atlasRow) const
+{
+    const int currentCols = columnCount();
+    const int atlasCols = tileset()->columnCount();
+    const int linearIndex = atlasRow * atlasCols + atlasCol;
+    return QPoint(linearIndex % currentCols,
+                 linearIndex / currentCols);
+}
+
 int TilesetModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
 
     if (tileset()->isAtlas()) {
-        return tileset()->rowCount();
+        const int currentCols = columnCount();
+        if (currentCols <= 0)
+            return 1;
+
+        const int totalTiles = tileset()->rowCount() * tileset()->columnCount();
+        return (totalTiles + currentCols - 1) / currentCols;
     }
 
     const int tileCount = mTileIds.size();
@@ -267,18 +290,8 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
         return nullptr;
 
     if (tileset()->isAtlas()) {
-        const int currentCols = columnCount();
-        const int tilesetCols = tileset()->columnCount();
-
-        if (currentCols <= 0 || tilesetCols <= 0)
-            return nullptr;
-
-        // Convert from view coordinates to tileset coordinates
-        const int linearIndex = index.column() + index.row() * currentCols;
-        const int tilesetRow = linearIndex / tilesetCols;
-        const int tilesetCol = linearIndex % tilesetCols;
-
-        const int tileId = tileset()->generateTileId(tilesetCol, tilesetRow);
+        const QPoint atlasPos = viewToAtlasCoords(index.column(), index.row());
+        const int tileId = tileset()->generateTileId(atlasPos.x(), atlasPos.y());
         return tileset()->findTile(tileId);
     }
 
@@ -296,26 +309,9 @@ QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
     if (tileset()->isAtlas()) {
-        const int currentCols = columnCount();
-        const int tilesetCols = tileset()->columnCount();
-
-        if (currentCols <= 0 || tilesetCols <= 0)
-            return QModelIndex();
-
-        // Get tile's position in tileset coordinates
-        const int spacing = tileset()->tileSpacing();
-        const int margin = tileset()->margin();
-        const int tileHeight = tileset()->tileHeight();
-        const int tileWidth = tileset()->tileWidth();
-        const int tilesetRow = qRound(qreal(tile->imageRect().y() - margin) / (tileHeight + spacing));
-        const int tilesetCol = qRound(qreal(tile->imageRect().x() - margin) / (tileWidth + spacing));
-
-        // Convert to view coordinates
-        const int linearIndex = tilesetRow * tilesetCols + tilesetCol;
-        const int viewRow = linearIndex / currentCols;
-        const int viewCol = linearIndex % currentCols;
-
-        return index(viewRow, viewCol);
+        const QPoint tilePos = tileset()->generateTilePos(tile->id());
+        const QPoint viewPos = atlasToViewCoords(tilePos.x(), tilePos.y());
+        return index(viewPos.y(), viewPos.x());
     }
 
     const int columnCount = TilesetModel::columnCount();
