@@ -348,7 +348,7 @@ void TilesetView::setTilesetDocument(TilesetDocument *tilesetDocument)
         connect(mTilesetDocument, &Document::changed, this, &TilesetView::onChange);
         connect(mTilesetDocument, &TilesetDocument::tilesAdded, this, &TilesetView::refreshColumnCount);
         connect(mTilesetDocument, &TilesetDocument::tilesRemoved, this, &TilesetView::refreshColumnCount);
-        connect(mTilesetDocument, &TilesetDocument::tileImageSourceChanged, this, &TilesetView::updateAtlasSpans);
+        connect(mTilesetDocument, &TilesetDocument::tileImageSourceChanged, this, &TilesetView::refreshColumnCount);
     }
 }
 
@@ -431,7 +431,6 @@ void TilesetView::setModel(QAbstractItemModel *model)
 {
     QTableView::setModel(model);
 
-    updateAtlasSpans();
     updateBackgroundColor();
     setVerticalScrollBarPolicy(dynamicWrapping() ? Qt::ScrollBarAlwaysOn
                                                 : Qt::ScrollBarAsNeeded);
@@ -927,6 +926,7 @@ void TilesetView::refreshColumnCount()
 
     if (!dynamicWrapping()) {
         tilesetModel()->setColumnCountOverride(0);
+        updateAtlasSpans();
         return;
     }
 
@@ -936,6 +936,7 @@ void TilesetView::refreshColumnCount()
     const int scaledTileSize = std::max<int>(tileWidth * scale(), 1) + gridSpace;
     const int columnCount = std::max(maxSize.width() / scaledTileSize, 1);
     tilesetModel()->setColumnCountOverride(columnCount);
+    updateAtlasSpans();
 }
 
 void TilesetView::applyWangId()
@@ -1084,7 +1085,6 @@ void TilesetView::handleAtlasMouseReleaseEvent(QMouseEvent *event)
     }
 
     selectionModel()->clear();
-    updateAtlasSpans();
 }
 
 void TilesetView::mergeSpan(int minRow, int maxRow, int minCol, int maxCol)
