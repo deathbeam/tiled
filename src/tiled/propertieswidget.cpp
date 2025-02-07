@@ -1994,9 +1994,10 @@ private:
     {
         const bool hasTilesetDocument = tilesetDocument();
         const auto isCollection = tile()->tileset()->isCollection();
+        const auto isAtlas = tile()->tileset()->isAtlas();
         mClassProperty->setEnabled(hasTilesetDocument);
         mImageProperty->setEnabled(hasTilesetDocument && isCollection);
-        mRectangleProperty->setEnabled(hasTilesetDocument && isCollection);
+        mRectangleProperty->setEnabled(hasTilesetDocument && (isCollection || isAtlas));
         mProbabilityProperty->setEnabled(hasTilesetDocument);
     }
 
