@@ -70,9 +70,6 @@ int TilesetModel::columnCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
-    if (tileset()->isAtlas()) {
-        return tileset()->columnCount();
-    }
     if (mColumnCountOverride > 0)
         return mColumnCountOverride;
     if (tileset()->columnCount())
@@ -270,7 +267,18 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
         return nullptr;
 
     if (tileset()->isAtlas()) {
-        const int tileId = tileset()->generateTileId(index.column(), index.row());
+        const int currentCols = columnCount();
+        const int tilesetCols = tileset()->columnCount();
+
+        if (currentCols <= 0 || tilesetCols <= 0)
+            return nullptr;
+
+        // Convert from view coordinates to tileset coordinates
+        const int linearIndex = index.column() + index.row() * currentCols;
+        const int tilesetRow = linearIndex / tilesetCols;
+        const int tilesetCol = linearIndex % tilesetCols;
+
+        const int tileId = tileset()->generateTileId(tilesetCol, tilesetRow);
         return tileset()->findTile(tileId);
     }
 
@@ -287,16 +295,27 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
 QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
-{
     if (tileset()->isAtlas()) {
+        const int currentCols = columnCount();
+        const int tilesetCols = tileset()->columnCount();
+
+        if (currentCols <= 0 || tilesetCols <= 0)
+            return QModelIndex();
+
+        // Get tile's position in tileset coordinates
         const int spacing = tileset()->tileSpacing();
         const int margin = tileset()->margin();
         const int tileHeight = tileset()->tileHeight();
         const int tileWidth = tileset()->tileWidth();
-        const int tileRow = qRound(qreal(tile->imageRect().y() - margin) / (tileHeight + spacing));
-        const int tileCol = qRound(qreal(tile->imageRect().x() - margin) / (tileWidth + spacing));
-        return index(tileRow, tileCol);
-    }
+        const int tilesetRow = qRound(qreal(tile->imageRect().y() - margin) / (tileHeight + spacing));
+        const int tilesetCol = qRound(qreal(tile->imageRect().x() - margin) / (tileWidth + spacing));
+
+        // Convert to view coordinates
+        const int linearIndex = tilesetRow * tilesetCols + tilesetCol;
+        const int viewRow = linearIndex / currentCols;
+        const int viewCol = linearIndex % currentCols;
+
+        return index(viewRow, viewCol);
     }
 
     const int columnCount = TilesetModel::columnCount();
