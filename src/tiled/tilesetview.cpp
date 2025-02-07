@@ -1013,12 +1013,31 @@ void TilesetView::updateAtlasSpans()
         // Set up spans for atlas tiles
         for (Tile *tile : tilesetModel->tileset()->tiles()) {
             QModelIndex index = tilesetModel->tileIndex(tile);
-            if (index.isValid()) {
-                QSize span = tilesetModel->tileSpanSize(index);
-                if (span != QSize(1, 1)) {
-                    setSpan(index.row(), index.column(),
-                           span.height(), span.width());
+            if (!index.isValid())
+                continue;
+
+            QSize span = tilesetModel->tileSpanSize(index);
+            if (span.width() <= 0 || span.height() <= 0)
+                continue;
+
+            // Ensure span is within bounds and adjust to not overlap existing spans
+            int row = index.row();
+            int col = index.column();
+            int height = span.height();
+            int width = span.width();
+
+            // Adjust height and width to avoid overlap
+            for (int i = row; i < row + height; ++i) {
+                for (int j = col; j < col + width; ++j) {
+                    if (rowSpan(i, j) > 1)
+                        height = std::min(height, i - row);
+                    if (columnSpan(i, j) > 1)
+                        width = std::min(width, j - col);
                 }
+            }
+
+            if (width > 0 && height > 0 && (width != 1 || height != 1)) {
+                setSpan(row, col, height, width);
             }
         }
     }

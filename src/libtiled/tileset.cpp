@@ -724,8 +724,8 @@ void Tileset::updateTileSize()
 int Tileset::generateTileId(int x, int y, bool absolute) const {
     if (absolute) {
         // Normalize x and y to tile coordinates
-        x = (x - mMargin) / (mTileWidth + mTileSpacing);
-        y = (y - mMargin) / (mTileHeight + mTileSpacing);
+        x = qRound(qreal(x - mMargin) / (mTileWidth + mTileSpacing));
+        y = qRound(qreal(y - mMargin) / (mTileHeight + mTileSpacing));
     }
 
     // Use 12+12 bit spatial hash (4096x4096 coordinates limit)

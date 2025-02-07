@@ -287,15 +287,16 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
 QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
-
+{
     if (tileset()->isAtlas()) {
         const int spacing = tileset()->tileSpacing();
         const int margin = tileset()->margin();
         const int tileHeight = tileset()->tileHeight();
         const int tileWidth = tileset()->tileWidth();
-        const int tileRow = (tile->imageRect().y() - margin) / (tileHeight + spacing);
-        const int tileCol = (tile->imageRect().x() - margin) / (tileWidth + spacing);
+        const int tileRow = qRound(qreal(tile->imageRect().y() - margin) / (tileHeight + spacing));
+        const int tileCol = qRound(qreal(tile->imageRect().x() - margin) / (tileWidth + spacing));
         return index(tileRow, tileCol);
+    }
     }
 
     const int columnCount = TilesetModel::columnCount();
