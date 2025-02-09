@@ -138,6 +138,7 @@ private:
 
     TilesetDocument *mTilesetDocument;
     QList<int> mTileIds;
+    QHash<QPoint, Tile*> mTileGrid;
     int mColumnCountOverride = 0;
     bool mRelocating = false;
 };

@@ -273,7 +273,7 @@ bool Tileset::initializeTilesetTiles()
 
         for (int tileNum = 0; tileNum < tileRects.size(); ++tileNum) {
             QRect rect = tileRects.at(tileNum);
-            const int tileId = isAtlas() ? generateTileId(rect.x(), rect.y(), true) : tileNum;
+            const int tileId = tileNum;
             auto it = mTilesById.find(tileId);
             if (it != mTilesById.end()) {
                 it.value()->setImage(QPixmap());    // make sure it uses the tileset's image
@@ -471,9 +471,6 @@ void Tileset::addTiles(const QList<Tile *> &tiles)
         Q_ASSERT(tile->tileset() == this && !mTilesById.contains(tile->id()));
         mTilesById.insert(tile->id(), tile);
         mTiles.append(tile);
-
-        if (isAtlas())
-            mNextTileId = std::max(mNextTileId, tile->id() + 1);
     }
 
     updateTileSize();
@@ -721,24 +718,40 @@ void Tileset::updateTileSize()
     mTileHeight = maxHeight;
 }
 
-int Tileset::generateTileId(int x, int y, bool absolute) const {
-    if (absolute) {
-        // Normalize x and y to tile coordinates
-        x = qRound(qreal(x - mMargin) / (mTileWidth + mTileSpacing));
-        y = qRound(qreal(y - mMargin) / (mTileHeight + mTileSpacing));
-    }
-
-    // Use 12+12 bit spatial hash (4096x4096 coordinates limit)
-    x &= 0xFFF;
-    y &= 0xFFF;
-    return (x << 12) | y; // 24 bits total
+QPoint Tileset::pixelToGrid(const QPoint &pixelPos) const
+{
+    return QPoint(
+        (pixelPos.x() - mMargin) / (mTileWidth + mTileSpacing),
+        (pixelPos.y() - mMargin) / (mTileHeight + mTileSpacing)
+    );
 }
 
-QPoint Tileset::generateTilePos(int id) const
+QPoint Tileset::gridToPixel(const QPoint &gridPos) const
 {
-    const int x = (id >> 12) & 0xFFF;
-    const int y = id & 0xFFF;
-    return QPoint(x, y);
+    return QPoint(
+        mMargin + gridPos.x() * (mTileWidth + mTileSpacing),
+        mMargin + gridPos.y() * (mTileHeight + mTileSpacing)
+    );
+}
+
+QRect Tileset::pixelToGrid(const QRect &pixelRect) const
+{
+    const QPoint topLeft = pixelToGrid(pixelRect.topLeft());
+    const QSize size(
+        pixelRect.width() / mTileWidth,
+        pixelRect.height() / mTileHeight
+    );
+    return QRect(topLeft, size);
+}
+
+QRect Tileset::gridToPixel(const QRect &gridRect) const
+{
+    const QPoint topLeft = gridToPixel(gridRect.topLeft());
+    return QRect(
+        topLeft.x(), topLeft.y(),
+        gridRect.width() * mTileWidth,
+        gridRect.height() * mTileHeight
+    );
 }
 
 QString Tileset::orientationToString(Tileset::Orientation orientation)

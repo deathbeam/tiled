@@ -32,6 +32,11 @@
 
 using namespace Tiled;
 
+inline uint qHash(const QPoint &p, uint seed = 0)
+{
+    return qHash(p.x(), seed) ^ qHash(p.y(), seed);
+}
+
 TilesetModel::TilesetModel(TilesetDocument *tilesetDocument, QObject *parent)
     : QAbstractListModel(parent)
     , mTilesetDocument(tilesetDocument)
@@ -270,17 +275,14 @@ Tile *TilesetModel::tileAt(const QModelIndex &index) const
 
     if (tileset()->isAtlas()) {
         const QPoint atlasPos = viewToAtlasCoords(index.column(), index.row());
-        const int tileId = tileset()->generateTileId(atlasPos.x(), atlasPos.y());
-        return tileset()->findTile(tileId);
+        return mTileGrid.value(atlasPos);
     }
 
     const int tileIndex = index.column() + index.row() * columnCount();
-
     if (tileIndex < mTileIds.size()) {
         const int tileId = mTileIds.at(tileIndex);
         return tileset()->findTile(tileId);
     }
-
     return nullptr;
 }
 
@@ -288,7 +290,7 @@ QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
     if (tileset()->isAtlas()) {
-        const QPoint tilePos = tileset()->generateTilePos(tile->id());
+        const QPoint tilePos = tileset()->pixelToGrid(tile->imageRect().topLeft());
         const QPoint viewPos = atlasToViewCoords(tilePos.x(), tilePos.y());
         return index(viewPos.y(), viewPos.x());
     }
@@ -363,6 +365,14 @@ void TilesetModel::tilesChanged(const QList<Tile *> &tiles)
 
 void TilesetModel::tileChanged(Tile *tile)
 {
+    if (tileset()->isAtlas()) {
+        const QPoint oldPos = mTileGrid.key(tile, QPoint(-1, -1));
+        if (oldPos != QPoint(-1, -1))
+            mTileGrid.remove(oldPos);
+        const QPoint newPos = tileset()->pixelToGrid(tile->imageRect().topLeft());
+        mTileGrid.insert(newPos, tile);
+    }
+
     const QModelIndex i = tileIndex(tile);
     emit dataChanged(i, i);
 }
@@ -370,8 +380,11 @@ void TilesetModel::tileChanged(Tile *tile)
 void TilesetModel::refreshTileIds()
 {
     mTileIds.clear();
-    for (Tile *tile : tileset()->tiles())
+    for (Tile *tile : tileset()->tiles()) {
         mTileIds.append(tile->id());
+        const QPoint pos = tileset()->pixelToGrid(tile->imageRect().topLeft());
+        mTileGrid.insert(pos, tile);
+    }
 }
 
 #include "moc_tilesetmodel.cpp"

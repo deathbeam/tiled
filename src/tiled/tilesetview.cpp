@@ -1100,16 +1100,8 @@ void TilesetView::mergeSpan(int minRow, int maxRow, int minCol, int maxCol)
     QModelIndex topLeftIndex = m->index(minRow, minCol);
     Tile *targetTile = m->tileAt(topLeftIndex);
 
-    // Convert to pixel coordinates only for the final imageRect
-    const int tileWidth = tileset->tileWidth();
-    const int tileHeight = tileset->tileHeight();
-    const int spacing = tileset->tileSpacing();
-    const int margin = tileset->margin();
-
-    QRect mergeRect(margin + topLeft.x() * (tileWidth + spacing),
-                   margin + topLeft.y() * (tileHeight + spacing),
-                   spanSize.width() * tileWidth,
-                   spanSize.height() * tileHeight);
+    // Convert to pixel coordinates for the final imageRect
+    QRect mergeRect = tileset->gridToPixel(QRect(topLeft, spanSize));
 
     // Collect all tiles within the merge rectangle except the target tile
     QList<Tile*> tilesToRemove;
@@ -1128,12 +1120,11 @@ void TilesetView::mergeSpan(int minRow, int maxRow, int minCol, int maxCol)
     if (targetTile) {
         // Extend the existing tile's span
         mTilesetDocument->undoStack()->push(new ChangeTileImageRect(mTilesetDocument,
-                                          QList<Tile*>() << targetTile,
-                                          QVector<QRect>() << mergeRect));
+                                                                   QList<Tile*>() << targetTile,
+                                                                   QVector<QRect>() << mergeRect));
     } else {
         // Create a new spanning tile
-        const int tileId = tileset->generateTileId(minCol, minRow);
-        Tile *newTile = new Tile(tileId, tileset);
+        Tile *newTile = new Tile(tileset->takeNextTileId(), tileset);
         newTile->setImageRect(mergeRect);
         mTilesetDocument->undoStack()->push(new AddTiles(mTilesetDocument, QList<Tile*>() << newTile));
     }
@@ -1148,11 +1139,12 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
     Tileset *tileset = m->tileset();
 
     // Get base grid position
-    QModelIndex tilePos = m->tileIndex(spanTile);
-    const QPoint basePos(tilePos.column(), tilePos.row());
+    const QPoint basePos = tileset->pixelToGrid(spanTile->imageRect().topLeft());
 
     // Calculate span in grid coordinates
-    QSize span = m->tileSpanSize(tilePos);
+    const QRect spanRect = tileset->pixelToGrid(spanTile->imageRect());
+    const QSize span = spanRect.size();
+
     if (span.width() <= 0 || span.height() <= 0 ||
         relativeCol < 0 || relativeCol >= span.width() ||
         relativeRow < 0 || relativeRow >= span.height())
@@ -1173,44 +1165,31 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
     if (minDist == distToLeft) {
         // Keep right side as span
         newSpanGridRect = QRect(basePos.x() + relativeCol + 1, basePos.y(),
-                              span.width() - relativeCol - 1, span.height());
+                               span.width() - relativeCol - 1, span.height());
         splitGridRect = QRect(basePos.x(), basePos.y(),
                             relativeCol + 1, span.height());
     } else if (minDist == distToRight) {
         // Keep left side as span
         newSpanGridRect = QRect(basePos.x(), basePos.y(),
-                              relativeCol, span.height());
+                               relativeCol, span.height());
         splitGridRect = QRect(basePos.x() + relativeCol, basePos.y(),
                             span.width() - relativeCol, span.height());
     } else if (minDist == distToTop) {
         // Keep bottom as span
         newSpanGridRect = QRect(basePos.x(), basePos.y() + relativeRow + 1,
-                              span.width(), span.height() - relativeRow - 1);
+                               span.width(), span.height() - relativeRow - 1);
         splitGridRect = QRect(basePos.x(), basePos.y(),
                             span.width(), relativeRow + 1);
     } else {
         // Keep top as span
         newSpanGridRect = QRect(basePos.x(), basePos.y(),
-                              span.width(), relativeRow);
+                               span.width(), relativeRow);
         splitGridRect = QRect(basePos.x(), basePos.y() + relativeRow,
                             span.width(), span.height() - relativeRow);
     }
 
-    // Convert to pixel coordinates
-    const int tileWidth = tileset->tileWidth();
-    const int tileHeight = tileset->tileHeight();
-    const int spacing = tileset->tileSpacing();
-    const int margin = tileset->margin();
-
-    auto toPixelRect = [=](const QRect &gridRect) {
-        return QRect(margin + gridRect.x() * (tileWidth + spacing),
-                    margin + gridRect.y() * (tileHeight + spacing),
-                    gridRect.width() * tileWidth,
-                    gridRect.height() * tileHeight);
-    };
-
-    QRect newSpanRect = toPixelRect(newSpanGridRect);
-    QRect splitRect = toPixelRect(splitGridRect);
+    QRect newSpanRect = tileset->gridToPixel(newSpanGridRect);
+    QRect splitRect = tileset->gridToPixel(splitGridRect);
 
     mTilesetDocument->undoStack()->beginMacro(tr("Split Tiles"));
 
@@ -1229,39 +1208,37 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
     const QPoint spanTilePos = spanTile->imageRect().topLeft();
     if (splitRect.contains(spanTilePos)) {
         // Resize original tile to single tile
-        QRect newSpanTileRect(spanTilePos.x(), spanTilePos.y(), tileWidth, tileHeight);
+        const QRect newSpanTileRect = tileset->gridToPixel(QRect(
+            tileset->pixelToGrid(spanTilePos), QSize(1, 1)));
         mTilesetDocument->undoStack()->push(new ChangeTileImageRect(mTilesetDocument,
-                                                                  QList<Tile*>() << spanTile,
-                                                                  QVector<QRect>() << newSpanTileRect));
+                                                                   QList<Tile*>() << spanTile,
+                                                                   QVector<QRect>() << newSpanTileRect));
 
         // Create new span in the remaining area
         if (!newSpanGridRect.isEmpty()) {
-            const int tileId = tileset->generateTileId(newSpanGridRect.x(), newSpanGridRect.y());
-            Tile *newSpan = new Tile(tileId, tileset);
+            Tile *newSpan = new Tile(tileset->takeNextTileId(), tileset);
             newSpan->setImageRect(newSpanRect);
             mTilesetDocument->undoStack()->push(new AddTiles(mTilesetDocument, QList<Tile*>() << newSpan));
         }
     } else {
         // Adjust span to new size
         mTilesetDocument->undoStack()->push(new ChangeTileImageRect(mTilesetDocument,
-                                                                  QList<Tile*>() << spanTile,
-                                                                  QVector<QRect>() << newSpanRect));
+                                                                   QList<Tile*>() << spanTile,
+                                                                   QVector<QRect>() << newSpanRect));
     }
 
     // Create individual tiles for split area
     QList<Tile*> newTiles;
     for (int r = 0; r < splitGridRect.height(); ++r) {
         for (int c = 0; c < splitGridRect.width(); ++c) {
-            const int gridX = splitGridRect.x() + c;
-            const int gridY = splitGridRect.y() + r;
-            const int tileId = tileset->generateTileId(gridX, gridY);
+            const QPoint gridPos(splitGridRect.x() + c, splitGridRect.y() + r);
 
             // Skip the original tile position
-            if (tileId == spanTile->id())
+            if (tileset->pixelToGrid(spanTilePos) == gridPos)
                 continue;
 
-            Tile *newTile = new Tile(tileId, tileset);
-            newTile->setImageRect(toPixelRect(QRect(gridX, gridY, 1, 1)));
+            Tile *newTile = new Tile(tileset->takeNextTileId(), tileset);
+            newTile->setImageRect(tileset->gridToPixel(QRect(gridPos, QSize(1, 1))));
             newTiles.append(newTile);
         }
     }

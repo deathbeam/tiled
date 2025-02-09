@@ -238,15 +238,11 @@ public:
     int nextTileId() const;
     int takeNextTileId();
 
-    /**
-     * Generates a tile ID from grid column and row coordinates or absolute coordinates
-     */
-    int generateTileId(int x, int y, bool absolute = false) const;
-
-    /**
-     * Generates a grid position from a tile ID.
-     */
-    QPoint generateTilePos(int id) const;
+    // Convert between pixel and grid coordinates
+    QPoint pixelToGrid(const QPoint &pixelPos) const;
+    QPoint gridToPixel(const QPoint &gridPos) const;
+    QRect pixelToGrid(const QRect &pixelRect) const;
+    QRect gridToPixel(const QRect &gridRect) const;
 
     void setTileImage(Tile *tile,
                       const QPixmap &image,
