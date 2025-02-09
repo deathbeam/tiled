@@ -1138,10 +1138,7 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
     TilesetModel *m = tilesetModel();
     Tileset *tileset = m->tileset();
 
-    // Get base grid position
-    const QPoint basePos = tileset->pixelToGrid(spanTile->imageRect().topLeft());
-
-    // Calculate span in grid coordinates
+    const QPoint spanTilePos = spanTile->imageRect().topLeft();
     const QRect spanRect = tileset->pixelToGrid(spanTile->imageRect());
     const QSize span = spanRect.size();
 
@@ -1151,40 +1148,43 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
         return;
 
     // Calculate closest edge
-    float relColRatio = (float)relativeCol / span.width();
-    float relRowRatio = (float)relativeRow / span.height();
-    float distToLeft = relColRatio;
-    float distToRight = 1.0f - relColRatio;
-    float distToTop = relRowRatio;
-    float distToBottom = 1.0f - relRowRatio;
-    float minDist = std::min({distToLeft, distToRight, distToTop, distToBottom});
+    const float relColRatio = (float)relativeCol / span.width();
+    const float relRowRatio = (float)relativeRow / span.height();
+    const float distToLeft = relColRatio;
+    const float distToRight = 1.0f - relColRatio;
+    const float distToTop = relRowRatio;
+    const float distToBottom = 1.0f - relRowRatio;
+    const float minDist = std::min({distToLeft, distToRight, distToTop, distToBottom});
 
-    // Calculate split in grid coordinates
+    // Calculate split rects in grid coordinates
     QRect newSpanGridRect, splitGridRect;
-
     if (minDist == distToLeft) {
-        // Keep right side as span
-        newSpanGridRect = QRect(basePos.x() + relativeCol + 1, basePos.y(),
+        // Split vertically at left side
+        const int splitX = spanRect.x() + relativeCol;
+        newSpanGridRect = QRect(splitX + 1, spanRect.y(),
                                span.width() - relativeCol - 1, span.height());
-        splitGridRect = QRect(basePos.x(), basePos.y(),
+        splitGridRect = QRect(spanRect.x(), spanRect.y(),
                             relativeCol + 1, span.height());
     } else if (minDist == distToRight) {
-        // Keep left side as span
-        newSpanGridRect = QRect(basePos.x(), basePos.y(),
+        // Split vertically at right side
+        const int splitX = spanRect.x() + relativeCol;
+        newSpanGridRect = QRect(spanRect.x(), spanRect.y(),
                                relativeCol, span.height());
-        splitGridRect = QRect(basePos.x() + relativeCol, basePos.y(),
+        splitGridRect = QRect(splitX, spanRect.y(),
                             span.width() - relativeCol, span.height());
     } else if (minDist == distToTop) {
-        // Keep bottom as span
-        newSpanGridRect = QRect(basePos.x(), basePos.y() + relativeRow + 1,
+        // Split horizontally at top
+        const int splitY = spanRect.y() + relativeRow;
+        newSpanGridRect = QRect(spanRect.x(), splitY + 1,
                                span.width(), span.height() - relativeRow - 1);
-        splitGridRect = QRect(basePos.x(), basePos.y(),
+        splitGridRect = QRect(spanRect.x(), spanRect.y(),
                             span.width(), relativeRow + 1);
     } else {
-        // Keep top as span
-        newSpanGridRect = QRect(basePos.x(), basePos.y(),
+        // Split horizontally at bottom
+        const int splitY = spanRect.y() + relativeRow;
+        newSpanGridRect = QRect(spanRect.x(), spanRect.y(),
                                span.width(), relativeRow);
-        splitGridRect = QRect(basePos.x(), basePos.y() + relativeRow,
+        splitGridRect = QRect(spanRect.x(), splitY,
                             span.width(), span.height() - relativeRow);
     }
 
@@ -1193,23 +1193,20 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
 
     mTilesetDocument->undoStack()->beginMacro(tr("Split Tiles"));
 
-    // Delete all tiles in the new span area
+    // Remove tiles in the new span area
     QList<Tile*> tilesToRemove;
     for (Tile *tile : tileset->tiles()) {
         if (tile == spanTile)
             continue;
-        if (newSpanRect.contains(tile->imageRect().topLeft())) {
+        if (newSpanRect.contains(tile->imageRect().topLeft()))
             tilesToRemove.append(tile);
-        }
     }
     if (!tilesToRemove.isEmpty())
         mTilesetDocument->undoStack()->push(new RemoveTiles(mTilesetDocument, tilesToRemove));
 
-    const QPoint spanTilePos = spanTile->imageRect().topLeft();
     if (splitRect.contains(spanTilePos)) {
         // Resize original tile to single tile
-        const QRect newSpanTileRect = tileset->gridToPixel(QRect(
-            tileset->pixelToGrid(spanTilePos), QSize(1, 1)));
+        const QRect newSpanTileRect(spanTile->imageRect().topLeft(), tileset->tileSize());
         mTilesetDocument->undoStack()->push(new ChangeTileImageRect(mTilesetDocument,
                                                                    QList<Tile*>() << spanTile,
                                                                    QVector<QRect>() << newSpanTileRect));
@@ -1232,8 +1229,6 @@ void TilesetView::splitSpan(Tile *spanTile, int relativeRow, int relativeCol)
     for (int r = 0; r < splitGridRect.height(); ++r) {
         for (int c = 0; c < splitGridRect.width(); ++c) {
             const QPoint gridPos(splitGridRect.x() + c, splitGridRect.y() + r);
-
-            // Skip the original tile position
             if (tileset->pixelToGrid(spanTilePos) == gridPos)
                 continue;
 
