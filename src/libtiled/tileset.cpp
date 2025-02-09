@@ -718,42 +718,6 @@ void Tileset::updateTileSize()
     mTileHeight = maxHeight;
 }
 
-QPoint Tileset::pixelToGrid(const QPoint &pixelPos) const
-{
-    return QPoint(
-        (pixelPos.x() - mMargin) / (mTileWidth + mTileSpacing),
-        (pixelPos.y() - mMargin) / (mTileHeight + mTileSpacing)
-    );
-}
-
-QPoint Tileset::gridToPixel(const QPoint &gridPos) const
-{
-    return QPoint(
-        mMargin + gridPos.x() * (mTileWidth + mTileSpacing),
-        mMargin + gridPos.y() * (mTileHeight + mTileSpacing)
-    );
-}
-
-QRect Tileset::pixelToGrid(const QRect &pixelRect) const
-{
-    const QPoint topLeft = pixelToGrid(pixelRect.topLeft());
-    const QSize size(
-        pixelRect.width() / mTileWidth,
-        pixelRect.height() / mTileHeight
-    );
-    return QRect(topLeft, size);
-}
-
-QRect Tileset::gridToPixel(const QRect &gridRect) const
-{
-    const QPoint topLeft = gridToPixel(gridRect.topLeft());
-    return QRect(
-        topLeft.x(), topLeft.y(),
-        gridRect.width() * mTileWidth,
-        gridRect.height() * mTileHeight
-    );
-}
-
 QString Tileset::orientationToString(Tileset::Orientation orientation)
 {
     switch (orientation) {
