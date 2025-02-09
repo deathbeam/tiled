@@ -94,7 +94,7 @@ public:
 
     void setWangColor(int color);
 
-    QModelIndex hoveredIndex() const { return mHoveredIndex; }
+    Tile *hoveredTile() const { return mHoveredTile; }
 
     QIcon imageMissingIcon() const;
 
@@ -117,6 +117,7 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
 
 private:
     void onChange(const ChangeEvent &change);
@@ -132,12 +133,13 @@ private:
 
     void applyWangId();
     void finishWangIdChange();
-    Tile *currentTile() const;
 
-    void updateAtlasSpans();
-    void handleAtlasMouseReleaseEvent(QMouseEvent *event);
-    void mergeSpan(int minRow, int maxRow, int minCol, int maxCol);
-    void splitSpan(Tile *spanTile, int relativeRow, int relativeCol);
+    Tile *currentTile() const;
+    QPoint mapToScene(const QPoint &viewPos) const;
+    QRect tileToViewRect(const QRect &tileRect) const;
+    Tile *tileAtPosition(const QPoint &pos) const;
+    void updateAtlasSelection(const QPoint &currentPos);
+    void finishAtlasSelection();
 
     enum WangBehavior {
         AssignWholeId,      // Assigning templates
@@ -161,8 +163,14 @@ private:
     WangSet *mWangSet = nullptr;
     WangId mWangId;
     int mWangColorIndex = 0;
-    QModelIndex mHoveredIndex;
+    Tile *mHoveredTile = nullptr;
     bool mWangIdChanged = false;
+
+    bool mAtlasSelecting = false;
+    bool mAtlasDeleting = false;
+    QPoint mSelectionStart;
+    QRect mCurrentSelectionRect;
+    bool mSnapToGrid = true;
 
     const QIcon mImageMissingIcon;
 };
