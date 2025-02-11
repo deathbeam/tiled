@@ -49,10 +49,8 @@ int TilesetModel::rowCount(const QModelIndex &parent) const
     if (parent.isValid())
         return 0;
 
-    if (tileset()->isAtlas()) {
-        // Atlas mode: single row containing whole tileset
+    if (tileset()->isAtlas())
         return 1;
-    }
 
     const int tileCount = mTileIds.size();
     const int columns = columnCount();
@@ -71,12 +69,10 @@ int TilesetModel::columnCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
-    if (tileset()->isAtlas()) {
-        // Atlas mode: single column containing whole tileset
-        return 1;
-    }
     if (mColumnCountOverride > 0)
         return mColumnCountOverride;
+    if (tileset()->isAtlas())
+        return 1;
     if (tileset()->columnCount())
         return tileset()->columnCount();
     // TODO: Non-table tilesets should use a different model.
@@ -210,13 +206,10 @@ bool TilesetModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
 Tile *TilesetModel::tileAt(const QModelIndex &index) const
 {
     if (tileset()->isAtlas()) {
-        // Convert index coordinates to tileset position
-        const QPoint pos(index.column() - 1, index.row() - 1);
-
-        // Find tile that contains this position
-        for (Tile *tile : tileset()->tiles()) {
-            if (tile->imageRect().contains(pos))
-                return tile;
+        const int tileIndex = index.column() - 1;
+        if (tileIndex < mTileIds.size() && tileIndex >= 0) {
+            const int tileId = mTileIds.at(tileIndex);
+            return tileset()->findTile(tileId);
         }
         return nullptr;
     }
@@ -236,9 +229,9 @@ QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
     if (tileset()->isAtlas()) {
-        // For atlas mode, create index from tile's position in the image
-        const QRect rect = tile->imageRect();
-        return index(rect.y() + 1, rect.x() + 1);
+        const int tileIndex = mTileIds.indexOf(tile->id());
+        Q_ASSERT(tileIndex != -1);
+        return index(0, tileIndex + 1);
     }
 
     const int columnCount = TilesetModel::columnCount();

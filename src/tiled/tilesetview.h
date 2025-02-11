@@ -119,6 +119,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     QModelIndex indexAt(const QPoint &pos) const override;
+    QRect visualRect(const QModelIndex &index) const override;
 
 private:
     void onChange(const ChangeEvent &change);

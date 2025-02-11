@@ -642,12 +642,12 @@ void TilesetView::mousePressEvent(QMouseEvent *event)
                 }
             }
 
-            mAtlasSelecting = true;
-            mSelectionStart = viewToTile(event->pos());
-            updateAtlasSelection(mSelectionStart);
-            event->accept();
-            viewport()->update();
-            return;
+            // mAtlasSelecting = true;
+            // mSelectionStart = viewToTile(event->pos());
+            // updateAtlasSelection(mSelectionStart);
+            // event->accept();
+            // viewport()->update();
+            // return;
         }
     }
 
@@ -867,6 +867,22 @@ QModelIndex TilesetView::indexAt(const QPoint &pos) const
 
     // Use default behavior for non-atlas mode
     return QTableView::indexAt(pos);
+}
+
+QRect TilesetView::visualRect(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return QRect();
+
+    const TilesetModel *m = tilesetModel();
+    if (m && m->tileset()->isAtlas()) {
+        if (Tile *tile = m->tileAt(index)) {
+            return tileToView(tile->imageRect());
+        }
+        return QRect();
+    }
+
+    return QTableView::visualRect(index);
 }
 
 void TilesetView::leaveEvent(QEvent *event)
