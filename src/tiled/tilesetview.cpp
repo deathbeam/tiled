@@ -629,10 +629,10 @@ void TilesetView::mousePressEvent(QMouseEvent *event)
         return;
     }
 
-    if (model->tileset()->isAtlas()) {
+    if (model->tileset()->isAtlas() && mRelocateTiles) {
         if (event->button() == Qt::LeftButton || event->button() == Qt::RightButton) {
             mSnapToGrid = !(event->modifiers() & Qt::ShiftModifier);
-            if (mRelocateTiles && event->button() == Qt::LeftButton) {
+            if (event->button() == Qt::LeftButton) {
                 mDraggedTile = model->tileAt(indexAt(event->pos()));
                 if (mDraggedTile) {
                     mDragOffset = viewToTile(event->pos()) - mDraggedTile->imageRect().topLeft();
@@ -642,12 +642,12 @@ void TilesetView::mousePressEvent(QMouseEvent *event)
                 }
             }
 
-            // mAtlasSelecting = true;
-            // mSelectionStart = viewToTile(event->pos());
-            // updateAtlasSelection(mSelectionStart);
-            // event->accept();
-            // viewport()->update();
-            // return;
+            mAtlasSelecting = true;
+            mSelectionStart = viewToTile(event->pos());
+            updateAtlasSelection(mSelectionStart);
+            event->accept();
+            viewport()->update();
+            return;
         }
     }
 
