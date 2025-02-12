@@ -454,7 +454,6 @@ bool TilesetView::dynamicWrapping() const
 void TilesetView::setModel(QAbstractItemModel *model)
 {
     QTableView::setModel(model);
-
     updateBackgroundColor();
     setVerticalScrollBarPolicy(dynamicWrapping() ? Qt::ScrollBarAlwaysOn : Qt::ScrollBarAsNeeded);
     refreshColumnCount();
@@ -624,12 +623,7 @@ void TilesetView::mousePressEvent(QMouseEvent *event)
     }
 
     const TilesetModel *model = tilesetModel();
-    if (!model) {
-        QTableView::mousePressEvent(event);
-        return;
-    }
-
-    if (model->tileset()->isAtlas() && mRelocateTiles) {
+    if (mRelocateTiles && model && model->tileset()->isAtlas()) {
         if (event->button() == Qt::LeftButton || event->button() == Qt::RightButton) {
             mSnapToGrid = !(event->modifiers() & Qt::ShiftModifier);
             if (event->button() == Qt::LeftButton) {
@@ -897,15 +891,13 @@ QRect TilesetView::visualRect(const QModelIndex &index) const
 void TilesetView::leaveEvent(QEvent *event)
 {
     if (mHoveredIndex.isValid()) {
+        const QModelIndex previousHoveredIndex = mHoveredIndex;
+        mHoveredIndex = QModelIndex();
         const TilesetModel *model = tilesetModel();
-        if (model) {
-            const QModelIndex previousHoveredIndex = mHoveredIndex;
-            mHoveredIndex = QModelIndex();
-            if (model->tileset()->isAtlas()) {
-                viewport()->update();
-            } else {
-                update(previousHoveredIndex);
-            }
+        if (model && model->tileset()->isAtlas()) {
+            viewport()->update();
+        } else {
+            update(previousHoveredIndex);
         }
     }
 
