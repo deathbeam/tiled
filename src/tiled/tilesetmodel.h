@@ -130,7 +130,7 @@ private:
 
     void refreshTileIds();
 
-    QPoint snapToGrid(const QPoint &pos, int gridSize) const;
+    QPoint snapToGrid(const QPoint &pos) const;
 
     TilesetDocument *mTilesetDocument;
     QList<int> mTileIds;

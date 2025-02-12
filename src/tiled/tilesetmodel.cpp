@@ -83,7 +83,6 @@ int TilesetModel::columnCount(const QModelIndex &parent) const
 QModelIndex TilesetModel::index(int row, int column, const QModelIndex &parent) const
 {
     if (tileset()->isAtlas())
-        // Atlas mode: allow any index
         return createIndex(row, column);
 
     return QAbstractListModel::index(row, column, parent);
@@ -205,23 +204,19 @@ bool TilesetModel::dropMimeData(const QMimeData *data, Qt::DropAction action,
 
 Tile *TilesetModel::tileAt(const QModelIndex &index) const
 {
-    if (tileset()->isAtlas()) {
-        if (!index.isValid())
-            return nullptr;
+    if (!index.isValid())
+        return nullptr;
 
-        const int gridSize = tileset()->tileWidth();
-        const QPoint gridPos((index.column() - 1) * gridSize, index.row() * gridSize);
+    if (tileset()->isAtlas()) {
+        const QPoint gridPos(index.column() - 1, index.row());
         for (Tile *tile : tileset()->tiles()) {
-            const QPoint snappedPos = snapToGrid(tile->imageRect().bottomLeft(), gridSize);
+            const QPoint snappedPos = snapToGrid(tile->imageRect().bottomLeft());
             if (snappedPos == gridPos)
                 return tile;
         }
 
         return nullptr;
     }
-
-    if (!index.isValid())
-        return nullptr;
 
     const int tileIndex = index.column() + index.row() * columnCount();
     if (tileIndex < mTileIds.size()) {
@@ -235,10 +230,8 @@ QModelIndex TilesetModel::tileIndex(const Tile *tile) const
 {
     Q_ASSERT(tile->tileset() == tileset());
     if (tileset()->isAtlas()) {
-        const int gridSize = tileset()->tileWidth();
-        const QPoint snappedPos = snapToGrid(tile->imageRect().bottomLeft(), gridSize);
-        return index(snappedPos.y() / gridSize,
-                    (snappedPos.x() / gridSize) + 1);
+        const QPoint snappedPos = snapToGrid(tile->imageRect().bottomLeft());
+        return index(snappedPos.y(), snappedPos.x() + 1);
     }
 
     const int columnCount = TilesetModel::columnCount();
@@ -322,11 +315,12 @@ void TilesetModel::refreshTileIds()
         mTileIds.append(tile->id());
 }
 
-QPoint TilesetModel::snapToGrid(const QPoint &pos, int gridSize) const
+QPoint TilesetModel::snapToGrid(const QPoint &pos) const
 {
-    // Snap to nearest grid position, avoiding overlaps
-    const int x = (pos.x() + gridSize / 2) / gridSize * gridSize;
-    const int y = (pos.y() + gridSize / 2) / gridSize * gridSize;
+    const int tileWidth = tileset()->tileWidth();
+    const int tileHeight = tileset()->tileHeight();
+    const int x = (pos.x() + tileWidth / 2) / tileWidth;
+    const int y = (pos.y() + tileHeight / 2) / tileHeight;
     return QPoint(x, y);
 }
 
