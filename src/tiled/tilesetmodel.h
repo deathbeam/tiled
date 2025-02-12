@@ -130,6 +130,8 @@ private:
 
     void refreshTileIds();
 
+    QPoint snapToGrid(const QPoint &pos, int gridSize) const;
+
     TilesetDocument *mTilesetDocument;
     QList<int> mTileIds;
     int mColumnCountOverride = 0;

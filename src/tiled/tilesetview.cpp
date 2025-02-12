@@ -869,6 +869,15 @@ QModelIndex TilesetView::indexAt(const QPoint &pos) const
     return QTableView::indexAt(pos);
 }
 
+void TilesetView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    QTableView::selectionChanged(selected, deselected);
+
+    if (tilesetModel() && tilesetModel()->tileset()->isAtlas()) {
+        viewport()->update();
+    }
+}
+
 QRect TilesetView::visualRect(const QModelIndex &index) const
 {
     if (!index.isValid())
