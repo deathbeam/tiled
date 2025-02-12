@@ -802,42 +802,40 @@ void TilesetView::paintEvent(QPaintEvent *event)
     QTableView::paintEvent(event);
 
     TilesetModel *model = tilesetModel();
-    if (!model)
+    if (!model || !model->tileset()->isAtlas())
         return;
 
     QPainter painter(viewport());
 
-    if (model->tileset()->isAtlas()) {
-        // Draw tiles
-        TileDelegate *delegate = static_cast<TileDelegate*>(itemDelegate());
-        QItemSelectionModel *s = selectionModel();
+    // Draw tiles
+    TileDelegate *delegate = static_cast<TileDelegate*>(itemDelegate());
+    QItemSelectionModel *s = selectionModel();
 
-        for (Tile *tile : model->tileset()->tiles()) {
-            const QRect rect = tileToView(tile->imageRect());
-            const QModelIndex index = model->tileIndex(tile);
-            const bool selected = s->isSelected(index);
-            delegate->paintTile(&painter, model, tile, rect, palette().highlight(), selected, mHoveredIndex == index);
+    for (Tile *tile : model->tileset()->tiles()) {
+        const QRect rect = tileToView(tile->imageRect());
+        const QModelIndex index = model->tileIndex(tile);
+        const bool selected = s->isSelected(index);
+        delegate->paintTile(&painter, model, tile, rect, palette().highlight(), selected, mHoveredIndex == index);
 
-            if (mDrawGrid) {
-                if (mRelocateTiles) {
-                    painter.setPen(palette().highlight().color());
-                } else {
-                    painter.setPen(palette().base().color());
-                }
-                painter.drawRect(rect);
+        if (mDrawGrid) {
+            if (mRelocateTiles) {
+                painter.setPen(palette().highlight().color());
+            } else {
+                painter.setPen(palette().base().color());
             }
+            painter.drawRect(rect);
         }
+    }
 
-        // Draw current selection with more visible color
-        if (mAtlasSelecting) {
-            QPen selectionPen(QColor(255, 255, 255, 200));  // Semi-transparent white
-            selectionPen.setStyle(Qt::DashLine);
-            painter.setPen(selectionPen);
-            painter.drawRect(mCurrentSelectionRect);
+    // Draw current selection with more visible color
+    if (mAtlasSelecting) {
+        QPen selectionPen(QColor(255, 255, 255, 200));  // Semi-transparent white
+        selectionPen.setStyle(Qt::DashLine);
+        painter.setPen(selectionPen);
+        painter.drawRect(mCurrentSelectionRect);
 
-            // Optional: Fill selection with semi-transparent color
-            painter.fillRect(mCurrentSelectionRect, QColor(255, 255, 255, 30));
-        }
+        // Optional: Fill selection with semi-transparent color
+        painter.fillRect(mCurrentSelectionRect, QColor(255, 255, 255, 30));
     }
 }
 
@@ -1250,30 +1248,17 @@ void TilesetView::finishAtlasSelection(bool deleting)
                         mCurrentSelectionRect.size() / scale());
     }
 
-    if (mRelocateTiles) {
-        if (deleting) {
-            QList<Tile*> tiles;
-            for (Tile *tile : tilesetModel()->tileset()->tiles()) {
-                if (tileRect.intersects(tile->imageRect()))
-                    tiles.append(tile);
-            }
-            mTilesetDocument->undoStack()->push(new RemoveTiles(mTilesetDocument, tiles));
-        } else {
-            Tile *newTile = new Tile(tilesetModel()->tileset()->takeNextTileId(), tilesetModel()->tileset());
-            newTile->setImageRect(tileRect);
-            mTilesetDocument->undoStack()->push(new AddTiles(mTilesetDocument, QList<Tile*>() << newTile));
-        }
-    } else {
-        // Select all tiles that intersect with the selection rect
-        QItemSelection selection;
+    if (deleting) {
+        QList<Tile*> tiles;
         for (Tile *tile : tilesetModel()->tileset()->tiles()) {
-            if (tileRect.intersects(tile->imageRect())) {
-                QModelIndex index = tilesetModel()->tileIndex(tile);
-                selection.select(index, index);
-            }
+            if (tileRect.intersects(tile->imageRect()))
+                tiles.append(tile);
         }
-        selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect);
-        selectionModel()->setCurrentIndex(selection.first().topLeft(), QItemSelectionModel::Current);
+        mTilesetDocument->undoStack()->push(new RemoveTiles(mTilesetDocument, tiles));
+    } else {
+        Tile *newTile = new Tile(tilesetModel()->tileset()->takeNextTileId(), tilesetModel()->tileset());
+        newTile->setImageRect(tileRect);
+        mTilesetDocument->undoStack()->push(new AddTiles(mTilesetDocument, QList<Tile*>() << newTile));
     }
 
     mCurrentSelectionRect = QRect();
